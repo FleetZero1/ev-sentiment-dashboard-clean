@@ -1,0 +1,7 @@
+streamlit
+pandas
+spacy
+joblib
+requests
+feedparser
+streamlit-autorefresh
