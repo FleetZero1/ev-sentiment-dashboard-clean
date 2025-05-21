@@ -1,8 +1,6 @@
 import streamlit as st
 st.set_page_config(page_title="Global Energy Transition Dashboard", layout="wide")
 
-
-
 import joblib
 import pandas as pd
 import spacy
@@ -15,12 +13,23 @@ from streamlit_autorefresh import st_autorefresh
 # Auto-refresh every 2 minutes
 st_autorefresh(interval=120000, key="refresh")
 
-# Load SpaCy English model
-nlp = spacy.load("en_core_web_sm")
+# Cache model and NLP resources
+@st.cache_resource
+def load_nlp():
+    return spacy.load("en_core_web_sm")
 
-# Load sentiment model and vectorizer
-model = joblib.load("ev_sentiment_model.pkl")
-vectorizer = joblib.load("ev_tfidf_vectorizer.pkl")
+@st.cache_resource
+def load_model():
+    return joblib.load("ev_sentiment_model.pkl")
+
+@st.cache_resource
+def load_vectorizer():
+    return joblib.load("ev_tfidf_vectorizer.pkl")
+
+# Load resources
+nlp = load_nlp()
+model = load_model()
+vectorizer = load_vectorizer()
 
 # Global post-oil energy transition keywords
 global_keywords = [
@@ -63,27 +72,30 @@ including electric vehicles, charging infrastructure, renewable energy, and alte
 # --- Reddit Section ---
 st.header("🧵 User Reviews")
 if st.button("Fetch Reddit Posts"):
-    reddit_df = get_reddit_posts(limit=20, keywords=global_keywords)
-    if not reddit_df.empty:
-        reddit_df["sentiment"] = ["✅ Positive" if p == 1 else "⚠️ Negative" for p in predict_sentiment(reddit_df["text"])]
-        st.dataframe(reddit_df)
-        st.bar_chart(reddit_df["sentiment"].value_counts())
+    with st.spinner("Fetching Reddit posts..."):
+        reddit_df = get_reddit_posts(limit=20, keywords=global_keywords)
+        if not reddit_df.empty:
+            reddit_df["sentiment"] = ["✅ Positive" if p == 1 else "⚠️ Negative" for p in predict_sentiment(reddit_df["text"])]
+            st.dataframe(reddit_df)
+            st.bar_chart(reddit_df["sentiment"].value_counts())
 
-        csv = reddit_df.to_csv(index=False)
-        st.download_button("📥 Download Reddit Data", data=csv, file_name="global_reddit_sentiment.csv", mime="text/csv")
-    else:
-        st.warning("No User Reviews found.")
+            csv = reddit_df.to_csv(index=False)
+            st.download_button("📥 Download Reddit Data", data=csv, file_name="global_reddit_sentiment.csv", mime="text/csv")
+        else:
+            st.warning("No User Reviews found.")
 
 # --- News Section ---
 st.header("📰 Global News Headlines")
 if st.button("Fetch News"):
-    news_df = get_news_headlines(global_keywords, limit=5)  # 5 per keyword
-    if not news_df.empty:
-        news_df["sentiment"] = ["✅ Positive" if p == 1 else "⚠️ Negative" for p in predict_sentiment(news_df["text"])]
-        st.dataframe(news_df)
-        st.bar_chart(news_df["sentiment"].value_counts())
+    with st.spinner("Fetching news headlines..."):
+        sample_keywords = global_keywords[:10]  # Limit to top 10 keywords for speed
+        news_df = get_news_headlines(sample_keywords, limit=3)  # Fewer results per keyword
+        if not news_df.empty:
+            news_df["sentiment"] = ["✅ Positive" if p == 1 else "⚠️ Negative" for p in predict_sentiment(news_df["text"])]
+            st.dataframe(news_df)
+            st.bar_chart(news_df["sentiment"].value_counts())
 
-        csv = news_df.to_csv(index=False)
-        st.download_button("📥 Download News Data", data=csv, file_name="global_news_sentiment.csv", mime="text/csv")
-    else:
-        st.warning("No news headlines found.")
+            csv = news_df.to_csv(index=False)
+            st.download_button("📥 Download News Data", data=csv, file_name="global_news_sentiment.csv", mime="text/csv")
+        else:
+            st.warning("No news headlines found.")
