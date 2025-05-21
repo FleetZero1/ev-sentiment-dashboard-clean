@@ -1,8 +1,7 @@
 import streamlit as st
 st.set_page_config(page_title="Global Energy Transition Dashboard", layout="wide")
 
-import spacy.cli
-spacy.cli.download("en_core_web_sm")
+
 
 import joblib
 import pandas as pd
